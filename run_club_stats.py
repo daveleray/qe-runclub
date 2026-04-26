@@ -31,17 +31,16 @@ def get_access_token():
     return resp.json()["access_token"]
 
 
-def fetch_club_activities(token, club_id):
-    """Fetch club activities from the past 7 days."""
+def fetch_club_activities(token, club_id, after, before):
+    """Fetch club run activities between two Unix timestamps."""
     headers = {"Authorization": f"Bearer {token}"}
-    after = int((datetime.now(timezone.utc) - timedelta(days=7)).timestamp())
     activities = []
     page = 1
     while True:
         resp = requests.get(
             f"https://www.strava.com/api/v3/clubs/{club_id}/activities",
             headers=headers,
-            params={"per_page": 200, "page": page, "after": after},
+            params={"per_page": 200, "page": page, "after": after, "before": before},
         )
         resp.raise_for_status()
         batch = resp.json()
@@ -53,6 +52,20 @@ def fetch_club_activities(token, club_id):
         page += 1
         time.sleep(0.5)
     return [a for a in activities if a.get("type") == "Run"]
+
+
+def resolve_week_window():
+    """Return (after, before, week_label) based on WEEK_START env var or last 7 days."""
+    week_start_str = os.environ.get("WEEK_START", "").strip()
+    if week_start_str:
+        week_start = datetime.strptime(week_start_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    else:
+        today = datetime.now(timezone.utc)
+        week_start = today - timedelta(days=7)
+
+    week_end = week_start + timedelta(days=7)
+    label = f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}"
+    return int(week_start.timestamp()), int(week_end.timestamp()), label
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -170,11 +183,10 @@ def main():
     print("Fetching Strava token...")
     token = get_access_token()
 
-    print(f"Fetching activities for club {club_id}...")
-    week_runs = fetch_club_activities(token, club_id)
+    after, before, week_label = resolve_week_window()
+    print(f"Fetching activities for club {club_id} ({week_label})...")
+    week_runs = fetch_club_activities(token, club_id, after, before)
     print(f"Found {len(week_runs)} runs this week.")
-
-    week_label = datetime.now().strftime("Week of %b %d, %Y")
 
     if not week_runs:
         print("No runs this week — sending a nudge email.")

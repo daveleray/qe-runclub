@@ -4,7 +4,12 @@ on:
   schedule:
     # Every Monday at 2 AM Eastern (7:00 UTC / shifts to 6:00 UTC during EDT)
     - cron: "0 7 * * 1"
-  workflow_dispatch: # also allows manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      week_start:
+        description: "Start of week to recap (Monday, YYYY-MM-DD). Leave blank for last 7 days."
+        required: false
+        default: ""
 
 jobs:
   send-recap:
@@ -21,6 +26,7 @@ jobs:
 
       - name: Send weekly recap
         env:
+          WEEK_START:           ${{ github.event.inputs.week_start }}
           STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
