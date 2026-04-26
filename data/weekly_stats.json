@@ -1,51 +1,5 @@
 [
   {
-    "week_start": "2026-03-23",
-    "week_end": "2026-03-30",
-    "label": "Mar 23 \u2013 Mar 30, 2026",
-    "total_runs": 9,
-    "total_miles": 81.31,
-    "participants": 6,
-    "leaderboard": [
-      {
-        "name": "Meg S.",
-        "runs": 4,
-        "miles": 22.03,
-        "avg_pace": "8:29"
-      },
-      {
-        "name": "Jack V.",
-        "runs": 1,
-        "miles": 16.51,
-        "avg_pace": "6:44"
-      },
-      {
-        "name": "Josh H.",
-        "runs": 1,
-        "miles": 13.14,
-        "avg_pace": "8:51"
-      },
-      {
-        "name": "Sam H.",
-        "runs": 1,
-        "miles": 13.0,
-        "avg_pace": "7:55"
-      },
-      {
-        "name": "David L.",
-        "runs": 1,
-        "miles": 9.58,
-        "avg_pace": "11:43"
-      },
-      {
-        "name": "Nelly M.",
-        "runs": 1,
-        "miles": 7.05,
-        "avg_pace": "9:05"
-      }
-    ]
-  },
-  {
     "week_start": "2026-03-30",
     "week_end": "2026-04-06",
     "label": "Mar 30 \u2013 Apr 06, 2026",
