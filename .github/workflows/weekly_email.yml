@@ -10,6 +10,10 @@ on:
         description: "Start of week to recap (Monday, YYYY-MM-DD). Leave blank for last 7 days."
         required: false
         default: ""
+      omnibus:
+        description: "Set to 'true' to send a combined last-6-weeks recap instead."
+        required: false
+        default: "false"
 
 jobs:
   send-recap:
@@ -27,6 +31,7 @@ jobs:
       - name: Send weekly recap
         env:
           WEEK_START:           ${{ github.event.inputs.week_start }}
+          OMNIBUS:              ${{ github.event.inputs.omnibus }}
           STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
