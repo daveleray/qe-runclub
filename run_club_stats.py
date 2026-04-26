@@ -1,6 +1,8 @@
 """
 Weekly run club stats emailer.
-Pulls activities from a Strava club and emails a summary.
+Pulls activities from a Strava club, saves stats to data/weekly_stats.json,
+and emails a summary. The JSON file is committed back to the repo after each run,
+building a permanent history that outlives Strava's ~6-week API window.
 
 Required env vars:
     STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
@@ -9,9 +11,11 @@ Required env vars:
 
 Optional env vars:
     WEEK_START   — Monday date (YYYY-MM-DD) to recap a specific past week
-    OMNIBUS      — set to "true" to send a combined last-6-weeks recap
+    OMNIBUS      — set to "true" to send a week-by-week recap for the last N weeks
+    OMNIBUS_WEEKS — number of weeks for omnibus (default 6)
 """
 
+import json
 import os
 import smtplib
 import time
@@ -20,6 +24,38 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import requests
+
+DB_PATH = "data/weekly_stats.json"
+
+
+# ── Database ──────────────────────────────────────────────────────────────────
+
+def load_db():
+    if os.path.exists(DB_PATH):
+        with open(DB_PATH) as f:
+            return json.load(f)
+    return []
+
+
+def save_db(records):
+    os.makedirs("data", exist_ok=True)
+    with open(DB_PATH, "w") as f:
+        json.dump(records, f, indent=2)
+    print(f"Saved {len(records)} weeks to {DB_PATH}")
+
+
+def upsert_record(records, new_record):
+    for i, r in enumerate(records):
+        if r["week_start"] == new_record["week_start"]:
+            records[i] = new_record
+            return records
+    records.append(new_record)
+    records.sort(key=lambda r: r["week_start"])
+    return records
+
+
+def find_record(records, week_start_str):
+    return next((r for r in records if r["week_start"] == week_start_str), None)
 
 
 # ── Strava ────────────────────────────────────────────────────────────────────
@@ -36,7 +72,6 @@ def get_access_token():
 
 
 def fetch_club_activities(token, club_id, after):
-    """Fetch club run activities since `after` (Unix timestamp)."""
     headers = {"Authorization": f"Bearer {token}"}
     activities = []
     page = 1
@@ -56,6 +91,21 @@ def fetch_club_activities(token, club_id, after):
         page += 1
         time.sleep(0.5)
     return [a for a in activities if a.get("type") == "Run"]
+
+
+def activity_fingerprint(a):
+    return (
+        a.get("athlete", {}).get("firstname"),
+        a.get("athlete", {}).get("lastname"),
+        a.get("name"),
+        a.get("distance"),
+        a.get("moving_time"),
+    )
+
+
+def subtract_activities(larger, smaller):
+    seen = set(activity_fingerprint(a) for a in smaller)
+    return [a for a in larger if activity_fingerprint(a) not in seen]
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -90,7 +140,7 @@ def build_stats(runs):
         leaderboard.append({
             "name":     name,
             "runs":     len(athlete_runs),
-            "miles":    meters_to_miles(total_dist),
+            "miles":    round(meters_to_miles(total_dist), 2),
             "avg_pace": seconds_to_pace(avg_pace),
         })
 
@@ -98,9 +148,21 @@ def build_stats(runs):
 
     return {
         "total_runs":  len(runs),
-        "total_miles": meters_to_miles(sum(r["distance"] for r in runs)),
+        "total_miles": round(meters_to_miles(sum(r["distance"] for r in runs)), 2),
         "participants": len(by_athlete),
         "leaderboard": leaderboard,
+    }
+
+
+def stats_to_record(stats, week_start, week_end):
+    return {
+        "week_start":  week_start.strftime("%Y-%m-%d"),
+        "week_end":    week_end.strftime("%Y-%m-%d"),
+        "label":       f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}",
+        "total_runs":  stats["total_runs"],
+        "total_miles": stats["total_miles"],
+        "participants": stats["participants"],
+        "leaderboard": stats["leaderboard"],
     }
 
 
@@ -134,25 +196,26 @@ def leaderboard_table(leaderboard):
   </table>"""
 
 
-def format_weekly_html(stats, label):
-    if not stats:
-        return f'<h3 style="color:#fc4c02">{label}</h3><p style="color:#888">No runs logged.</p>'
+def format_week_section(record):
+    if not record or not record.get("leaderboard"):
+        label = record["label"] if record else "Unknown week"
+        return f'<h3 style="color:#fc4c02">{label}</h3><p style="color:#888;margin-bottom:24px">No runs logged.</p>'
     return f"""
-  <h3 style="color:#fc4c02;margin-bottom:4px">{label}</h3>
+  <h3 style="color:#fc4c02;margin-bottom:4px">{record['label']}</h3>
   <p style="margin:0 0 8px 0;font-size:0.95em">
-    <strong>{stats['total_runs']}</strong> runs &nbsp;·&nbsp;
-    <strong>{stats['total_miles']:.1f} mi</strong> total &nbsp;·&nbsp;
-    <strong>{stats['participants']}</strong> athletes
+    <strong>{record['total_runs']}</strong> runs &nbsp;·&nbsp;
+    <strong>{record['total_miles']:.1f} mi</strong> total &nbsp;·&nbsp;
+    <strong>{record['participants']}</strong> athletes
   </p>
-  {leaderboard_table(stats['leaderboard'])}"""
+  {leaderboard_table(record['leaderboard'])}"""
 
 
-def wrap_html(title, body_content, footer):
+def wrap_html(title, body_content):
     return f"""
 <html><body style="font-family:sans-serif;color:#222;max-width:620px;margin:auto">
   <h2 style="color:#fc4c02">🏃 {title}</h2>
   {body_content}
-  <p style="font-size:0.8em;color:#888;margin-top:24px">{footer}</p>
+  <p style="font-size:0.8em;color:#888;margin-top:24px">Powered by Strava</p>
 </body></html>"""
 
 
@@ -173,94 +236,109 @@ def send_email(subject, html_body):
     print(f"Email sent to {recipients}")
 
 
-# ── Modes ─────────────────────────────────────────────────────────────────────
+# ── Week resolution ───────────────────────────────────────────────────────────
 
-def run_weekly(token, club_id):
+def resolve_week_start():
+    """Return week_start as a UTC midnight datetime snapped to Monday."""
     week_start_str = os.environ.get("WEEK_START", "").strip()
     if week_start_str:
-        week_start = datetime.strptime(week_start_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    else:
-        week_start = datetime.now(timezone.utc) - timedelta(days=7)
-
-    week_end   = week_start + timedelta(days=7)
-    label      = f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}"
-    after      = int(week_start.timestamp())
-
-    print(f"Fetching activities since {week_start.strftime('%Y-%m-%d')}...")
-    runs = fetch_club_activities(token, club_id, after)
-    print(f"Found {len(runs)} runs.")
-
-    stats = build_stats(runs)
-    if not stats:
-        html = wrap_html(
-            f"Run Club Recap — {label}",
-            "<p>No runs logged this week. Get out there! 👟</p>",
-            "Powered by Strava",
-        )
-    else:
-        html = wrap_html(
-            f"Run Club Recap — {label}",
-            format_weekly_html(stats, label),
-            "Powered by Strava · Data covers the selected week",
-        )
-    send_email(f"Run Club Recap — {label}", html)
-
-
-def activity_fingerprint(a):
-    return (
-        a.get("athlete", {}).get("firstname"),
-        a.get("athlete", {}).get("lastname"),
-        a.get("name"),
-        a.get("distance"),
-        a.get("moving_time"),
-    )
-
-
-def subtract_activities(larger, smaller):
-    """Return activities in larger that are not in smaller, matched by fingerprint."""
-    seen = set(activity_fingerprint(a) for a in smaller)
-    return [a for a in larger if activity_fingerprint(a) not in seen]
-
-
-def run_omnibus(token, club_id, num_weeks=6):
+        return datetime.strptime(week_start_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     today = datetime.now(timezone.utc)
-    days_since_monday = today.weekday()
-    this_monday = (today - timedelta(days=days_since_monday)).replace(
+    last_monday = today - timedelta(days=today.weekday() + 7)
+    return last_monday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+# ── Modes ─────────────────────────────────────────────────────────────────────
+
+def run_weekly(token, club_id, db):
+    week_start = resolve_week_start()
+    week_end   = week_start + timedelta(days=7)
+    week_key   = week_start.strftime("%Y-%m-%d")
+
+    existing = find_record(db, week_key)
+    if existing:
+        print(f"Found {week_key} in DB — skipping Strava fetch.")
+        record = existing
+    else:
+        print(f"Fetching from Strava for week of {week_key}...")
+        runs = fetch_club_activities(token, club_id, int(week_start.timestamp()))
+        print(f"Found {len(runs)} runs.")
+        stats  = build_stats(runs)
+        record = stats_to_record(stats, week_start, week_end) if stats else {
+            "week_start":  week_key,
+            "week_end":    week_end.strftime("%Y-%m-%d"),
+            "label":       f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}",
+            "total_runs":  0, "total_miles": 0, "participants": 0, "leaderboard": [],
+        }
+        db = upsert_record(db, record)
+        save_db(db)
+
+    html = wrap_html(f"Run Club Recap — {record['label']}", format_week_section(record))
+    send_email(f"Run Club Recap — {record['label']}", html)
+    return db
+
+
+def run_omnibus(token, club_id, db, num_weeks=6):
+    today = datetime.now(timezone.utc)
+    this_monday = (today - timedelta(days=today.weekday())).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
 
-    # Fetch cumulative batches from week 1 (most recent) out to num_weeks
-    # Each call returns everything from `after` to now, so we subtract to isolate each week
-    print(f"Fetching {num_weeks} weeks of data ({num_weeks} API calls)...")
-    cumulative = []
-    weeks = []
+    weeks_needed = []
     for w in range(1, num_weeks + 1):
-        week_end   = this_monday - timedelta(weeks=w - 1)
         week_start = this_monday - timedelta(weeks=w)
-        after      = int(week_start.timestamp())
-        label      = f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}"
+        week_end   = week_start + timedelta(weeks=1)
+        weeks_needed.append((week_start, week_end))
 
-        batch = fetch_club_activities(token, club_id, after)
-        week_runs = subtract_activities(batch, cumulative)
-        cumulative = batch
-        weeks.append((label, week_runs))
-        print(f"  {label}: {len(week_runs)} runs")
-        time.sleep(0.5)
+    # Identify which weeks are missing from DB and need a Strava fetch
+    missing = [(ws, we) for ws, we in weeks_needed
+               if not find_record(db, ws.strftime("%Y-%m-%d"))]
 
-    # Build HTML sections newest-first
+    if missing:
+        print(f"{len(missing)} weeks missing from DB — fetching from Strava...")
+        # Cumulative subtraction hack for missing weeks
+        oldest = min(ws for ws, _ in missing)
+        cumulative = []
+        for w in range(1, num_weeks + 1):
+            week_end   = this_monday - timedelta(weeks=w - 1)
+            week_start = this_monday - timedelta(weeks=w)
+            week_key   = week_start.strftime("%Y-%m-%d")
+
+            if find_record(db, week_key):
+                # Already in DB; reset cumulative since we can't subtract across a gap
+                cumulative = []
+                continue
+
+            batch      = fetch_club_activities(token, club_id, int(week_start.timestamp()))
+            week_runs  = subtract_activities(batch, cumulative)
+            cumulative = batch
+            stats      = build_stats(week_runs)
+            label      = f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}"
+            record = stats_to_record(stats, week_start, week_end) if stats else {
+                "week_start": week_key,
+                "week_end":   week_end.strftime("%Y-%m-%d"),
+                "label":      label,
+                "total_runs": 0, "total_miles": 0, "participants": 0, "leaderboard": [],
+            }
+            db = upsert_record(db, record)
+            print(f"  {label}: {len(week_runs)} runs")
+            time.sleep(0.5)
+
+        save_db(db)
+
+    # Build email from DB records newest-first
     sections = ""
-    for label, runs in weeks:
-        stats = build_stats(runs)
-        sections += format_weekly_html(stats, label) if stats else \
-            f'<h3 style="color:#fc4c02;margin-bottom:4px">{label}</h3><p style="color:#888;margin-bottom:24px">No runs logged.</p>'
+    for week_start, week_end in weeks_needed:
+        record = find_record(db, week_start.strftime("%Y-%m-%d"))
+        sections += format_week_section(record) if record else \
+            f'<h3 style="color:#fc4c02">{week_start.strftime("%b %d")} – {week_end.strftime("%b %d, %Y")}</h3>' \
+            f'<p style="color:#888;margin-bottom:24px">No data (outside Strava history).</p>'
 
-    date_range = f"{weeks[-1][0].split('–')[0].strip()} – {weeks[0][0].split('–')[1].strip()}"
-    html = wrap_html(
-        f"Run Club Omnibus — {date_range}",
-        sections,
-        f"Powered by Strava · Week-by-week recap for the last {num_weeks} weeks",
-    )
-    send_email(f"Run Club Omnibus — {date_range}", html)
+    oldest_label = weeks_needed[-1][0].strftime("%b %d")
+    newest_label = weeks_needed[0][1].strftime("%b %d, %Y")
+    title        = f"Run Club Omnibus — {oldest_label} – {newest_label}"
+    send_email(title, wrap_html(title, sections))
+    return db
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -270,11 +348,14 @@ def main():
 
     print("Fetching Strava token...")
     token = get_access_token()
+    db    = load_db()
+    print(f"Loaded {len(db)} weeks from DB.")
 
     if os.environ.get("OMNIBUS", "").strip().lower() == "true":
-        run_omnibus(token, club_id)
+        num_weeks = int(os.environ.get("OMNIBUS_WEEKS", "6"))
+        run_omnibus(token, club_id, db, num_weeks)
     else:
-        run_weekly(token, club_id)
+        run_weekly(token, club_id, db)
 
 
 if __name__ == "__main__":

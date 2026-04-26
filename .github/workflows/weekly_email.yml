@@ -11,9 +11,16 @@ on:
         required: false
         default: ""
       omnibus:
-        description: "Set to 'true' to send a combined last-6-weeks recap instead."
+        description: "Set to 'true' to send a week-by-week recap for the last N weeks."
         required: false
         default: "false"
+      omnibus_weeks:
+        description: "Number of weeks for omnibus (default 6)."
+        required: false
+        default: "6"
+
+permissions:
+  contents: write
 
 jobs:
   send-recap:
@@ -32,6 +39,7 @@ jobs:
         env:
           WEEK_START:           ${{ github.event.inputs.week_start }}
           OMNIBUS:              ${{ github.event.inputs.omnibus }}
+          OMNIBUS_WEEKS:        ${{ github.event.inputs.omnibus_weeks }}
           STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
@@ -40,3 +48,11 @@ jobs:
           EMAIL_TO:             ${{ secrets.EMAIL_TO }}
           EMAIL_APP_PASSWORD:   ${{ secrets.EMAIL_APP_PASSWORD }}
         run: python run_club_stats.py
+
+      - name: Commit updated stats DB
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/weekly_stats.json
+          git diff --staged --quiet || git commit -m "chore: update weekly stats [skip ci]"
+          git push
