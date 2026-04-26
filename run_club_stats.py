@@ -184,6 +184,10 @@ def main():
 
     print(f"Fetching activities for club {club_id}...")
     all_activities = fetch_club_activities(token, club_id)
+    print(f"Total activities returned: {len(all_activities)}")
+    if all_activities:
+        print(f"Sample activity keys: {list(all_activities[0].keys())}")
+        print(f"Sample activity: {all_activities[0]}")
 
     week_runs = activities_this_week(all_activities)
     print(f"Found {len(week_runs)} runs this week.")
