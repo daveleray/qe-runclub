@@ -252,24 +252,27 @@ def resolve_week_start():
 # ── Modes ─────────────────────────────────────────────────────────────────────
 
 def run_weekly(token, club_id, db):
-    week_start = resolve_week_start()
-    week_end   = week_start + timedelta(days=7)
-    week_key   = week_start.strftime("%Y-%m-%d")
+    week_start     = resolve_week_start()
+    week_end       = week_start + timedelta(days=7)
+    week_key       = week_start.strftime("%Y-%m-%d")
+    explicit_week  = bool(os.environ.get("WEEK_START", "").strip())
 
     existing = find_record(db, week_key)
-    if existing:
-        print(f"Found {week_key} in DB — skipping Strava fetch.")
+    if existing and explicit_week:
+        # Explicit backfill request — use cache, don't re-hit Strava
+        print(f"Found {week_key} in DB — using cached data.")
         record = existing
     else:
+        # Automated run or first time — always re-fetch so late syncs are captured
         print(f"Fetching from Strava for week of {week_key}...")
-        runs = fetch_club_activities(token, club_id, int(week_start.timestamp()))
+        runs   = fetch_club_activities(token, club_id, int(week_start.timestamp()))
         print(f"Found {len(runs)} runs.")
         stats  = build_stats(runs)
         record = stats_to_record(stats, week_start, week_end) if stats else {
-            "week_start":  week_key,
-            "week_end":    week_end.strftime("%Y-%m-%d"),
-            "label":       f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}",
-            "total_runs":  0, "total_miles": 0, "participants": 0, "leaderboard": [],
+            "week_start":   week_key,
+            "week_end":     week_end.strftime("%Y-%m-%d"),
+            "label":        f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}",
+            "total_runs":   0, "total_miles": 0, "participants": 0, "leaderboard": [],
         }
         db = upsert_record(db, record)
         save_db(db)
