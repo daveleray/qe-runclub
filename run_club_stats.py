@@ -58,7 +58,10 @@ def activities_this_week(activities):
     cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     result = []
     for a in activities:
-        start = datetime.fromisoformat(a["start_date"].replace("Z", "+00:00"))
+        raw = a.get("start_date")
+        if not raw:
+            continue
+        start = datetime.fromisoformat(raw.replace("Z", "+00:00"))
         if start >= cutoff and a.get("type") == "Run":
             result.append(a)
     return result
