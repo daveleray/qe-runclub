@@ -90,7 +90,8 @@ def fetch_club_activities(token, club_id, after):
             break
         page += 1
         time.sleep(0.5)
-    return [a for a in activities if a.get("type") == "Run"]
+    run_types = {"Run", "TrailRun", "VirtualRun", "Treadmill"}
+    return [a for a in activities if a.get("type") in run_types or a.get("sport_type") in run_types]
 
 
 def activity_fingerprint(a):
