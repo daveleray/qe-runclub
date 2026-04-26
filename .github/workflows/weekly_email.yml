@@ -1,0 +1,31 @@
+name: Weekly Run Club Email
+
+on:
+  schedule:
+    # Every Monday at 8 AM Eastern (12:00 UTC)
+    - cron: "0 12 * * 1"
+  workflow_dispatch: # also allows manual trigger from GitHub UI
+
+jobs:
+  send-recap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Send weekly recap
+        env:
+          STRAVA_CLIENT_ID:     ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          STRAVA_CLUB_ID:       ${{ secrets.STRAVA_CLUB_ID }}
+          EMAIL_FROM:           ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO:             ${{ secrets.EMAIL_TO }}
+          EMAIL_APP_PASSWORD:   ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: python run_club_stats.py
