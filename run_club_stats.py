@@ -206,35 +206,61 @@ def run_weekly(token, club_id):
     send_email(f"Run Club Recap — {label}", html)
 
 
+def activity_fingerprint(a):
+    return (
+        a.get("athlete", {}).get("firstname"),
+        a.get("athlete", {}).get("lastname"),
+        a.get("name"),
+        a.get("distance"),
+        a.get("moving_time"),
+    )
+
+
+def subtract_activities(larger, smaller):
+    """Return activities in larger that are not in smaller, matched by fingerprint."""
+    seen = set(activity_fingerprint(a) for a in smaller)
+    return [a for a in larger if activity_fingerprint(a) not in seen]
+
+
 def run_omnibus(token, club_id, num_weeks=6):
-    today      = datetime.now(timezone.utc)
-    # snap back to most recent Monday
+    today = datetime.now(timezone.utc)
     days_since_monday = today.weekday()
     this_monday = (today - timedelta(days=days_since_monday)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    start = this_monday - timedelta(weeks=num_weeks)
-    after = int(start.timestamp())
 
-    label = f"Last {num_weeks} Weeks — {start.strftime('%b %d')} to {this_monday.strftime('%b %d, %Y')}"
-    print(f"Omnibus: fetching activities since {start.strftime('%Y-%m-%d')}...")
-    runs = fetch_club_activities(token, club_id, after)
-    print(f"Found {len(runs)} runs across {num_weeks} weeks.")
+    # Fetch cumulative batches from week 1 (most recent) out to num_weeks
+    # Each call returns everything from `after` to now, so we subtract to isolate each week
+    print(f"Fetching {num_weeks} weeks of data ({num_weeks} API calls)...")
+    cumulative = []
+    weeks = []
+    for w in range(1, num_weeks + 1):
+        week_end   = this_monday - timedelta(weeks=w - 1)
+        week_start = this_monday - timedelta(weeks=w)
+        after      = int(week_start.timestamp())
+        label      = f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}"
 
-    stats = build_stats(runs)
-    if not stats:
-        html = wrap_html(
-            f"Run Club Omnibus — {label}",
-            "<p>No runs found in this period.</p>",
-            "Powered by Strava",
-        )
-    else:
-        html = wrap_html(
-            f"Run Club Omnibus — {label}",
-            format_weekly_html(stats, label),
-            f"Powered by Strava · Combined stats for the last {num_weeks} weeks",
-        )
-    send_email(f"Run Club Omnibus — {label}", html)
+        batch = fetch_club_activities(token, club_id, after)
+        week_runs = subtract_activities(batch, cumulative)
+        cumulative = batch
+        weeks.append((label, week_runs))
+        print(f"  {label}: {len(week_runs)} runs")
+        time.sleep(0.5)
+
+    # Build HTML sections newest-first
+    sections = ""
+    for label, runs in weeks:
+        stats = build_stats(runs)
+        sections += format_weekly_html(stats, label) if stats else \
+            f'<h3 style="color:#fc4c02;margin-bottom:4px">{label}</h3><p style="color:#888;margin-bottom:24px">No runs logged.</p>'
+
+    date_range = f"{weeks[-1][0].split('–')[0].strip()} – {weeks[0][0].split('–')[1].strip()}"
+    html = wrap_html(
+        f"Run Club Omnibus — {date_range}",
+        sections,
+        f"Powered by Strava · Week-by-week recap for the last {num_weeks} weeks",
+    )
+    send_email(f"Run Club Omnibus — {date_range}", html)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
