@@ -7,7 +7,9 @@
       "Bash(git remote *)",
       "Bash(git branch *)",
       "Bash(git push *)",
-      "Bash(gh workflow *)"
+      "Bash(gh workflow *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ]
   }
 }

@@ -155,11 +155,20 @@ def build_stats(runs):
     }
 
 
+def week_label(week_start_str):
+    """Mon→Sun label: 'April 20 to April 26'"""
+    monday  = datetime.strptime(week_start_str, "%Y-%m-%d")
+    sunday  = monday + timedelta(days=6)
+    start   = f"{monday.strftime('%B')} {monday.day}"
+    end     = f"{sunday.strftime('%B')} {sunday.day}"
+    return f"{start} to {end}"
+
+
 def stats_to_record(stats, week_start, week_end):
     return {
         "week_start":  week_start.strftime("%Y-%m-%d"),
         "week_end":    week_end.strftime("%Y-%m-%d"),
-        "label":       f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d, %Y')}",
+        "label":       week_label(week_start.strftime("%Y-%m-%d")),
         "total_runs":  stats["total_runs"],
         "total_miles": stats["total_miles"],
         "participants": stats["participants"],
@@ -198,11 +207,11 @@ def leaderboard_table(leaderboard):
 
 
 def format_week_section(record):
+    label = record.get("label") or (week_label(record["week_start"]) if record else "Unknown week")
     if not record or not record.get("leaderboard"):
-        label = record["label"] if record else "Unknown week"
         return f'<h3 style="color:#fc4c02">{label}</h3><p style="color:#888;margin-bottom:24px">No runs logged.</p>'
     return f"""
-  <h3 style="color:#fc4c02;margin-bottom:4px">{record['label']}</h3>
+  <h3 style="color:#fc4c02;margin-bottom:4px">{label}</h3>
   <p style="margin:0 0 8px 0;font-size:0.95em">
     <strong>{record['total_runs']}</strong> runs &nbsp;·&nbsp;
     <strong>{record['total_miles']:.1f} mi</strong> total &nbsp;·&nbsp;
@@ -278,7 +287,7 @@ def run_weekly(token, club_id, db):
         save_db(db)
 
     html = wrap_html(f"Run Club Recap — {record['label']}", format_week_section(record))
-    send_email(f"Run Club Recap — {record['label']}", html)
+    send_email(f"QE Run Club Recap - {record['label']}", html)
     return db
 
 
@@ -338,9 +347,9 @@ def run_omnibus(token, club_id, db, num_weeks=6):
             f'<h3 style="color:#fc4c02">{week_start.strftime("%b %d")} – {week_end.strftime("%b %d, %Y")}</h3>' \
             f'<p style="color:#888;margin-bottom:24px">No data (outside Strava history).</p>'
 
-    oldest_label = weeks_needed[-1][0].strftime("%b %d")
-    newest_label = weeks_needed[0][1].strftime("%b %d, %Y")
-    title        = f"Run Club Omnibus — {oldest_label} – {newest_label}"
+    oldest_label = week_label(weeks_needed[-1][0].strftime("%Y-%m-%d")).split(" to ")[0]
+    newest_label = week_label(weeks_needed[0][0].strftime("%Y-%m-%d")).split(" to ")[1]
+    title        = f"QE Run Club Omnibus - {oldest_label} to {newest_label}"
     send_email(title, wrap_html(title, sections))
     return db
 
