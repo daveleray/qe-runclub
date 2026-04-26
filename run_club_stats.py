@@ -32,15 +32,16 @@ def get_access_token():
 
 
 def fetch_club_activities(token, club_id):
-    """Fetch up to 200 recent club activities (Strava max per-page is 200)."""
+    """Fetch club activities from the past 7 days."""
     headers = {"Authorization": f"Bearer {token}"}
+    after = int((datetime.now(timezone.utc) - timedelta(days=7)).timestamp())
     activities = []
     page = 1
     while True:
         resp = requests.get(
             f"https://www.strava.com/api/v3/clubs/{club_id}/activities",
             headers=headers,
-            params={"per_page": 200, "page": page},
+            params={"per_page": 200, "page": page, "after": after},
         )
         resp.raise_for_status()
         batch = resp.json()
@@ -51,20 +52,7 @@ def fetch_club_activities(token, club_id):
             break
         page += 1
         time.sleep(0.5)
-    return activities
-
-
-def activities_this_week(activities):
-    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
-    result = []
-    for a in activities:
-        raw = a.get("start_date")
-        if not raw:
-            continue
-        start = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-        if start >= cutoff and a.get("type") == "Run":
-            result.append(a)
-    return result
+    return [a for a in activities if a.get("type") == "Run"]
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -183,13 +171,7 @@ def main():
     token = get_access_token()
 
     print(f"Fetching activities for club {club_id}...")
-    all_activities = fetch_club_activities(token, club_id)
-    print(f"Total activities returned: {len(all_activities)}")
-    if all_activities:
-        print(f"Sample activity keys: {list(all_activities[0].keys())}")
-        print(f"Sample activity: {all_activities[0]}")
-
-    week_runs = activities_this_week(all_activities)
+    week_runs = fetch_club_activities(token, club_id)
     print(f"Found {len(week_runs)} runs this week.")
 
     week_label = datetime.now().strftime("Week of %b %d, %Y")
