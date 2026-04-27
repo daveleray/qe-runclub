@@ -3,8 +3,8 @@
     "week_start": "2026-04-20",
     "week_end": "2026-04-27",
     "label": "April 20 to April 26",
-    "total_runs": 26,
-    "total_miles": 156.17,
+    "total_runs": 27,
+    "total_miles": 161.7,
     "participants": 9,
     "leaderboard": [
       {
@@ -50,16 +50,16 @@
         "avg_pace": "10:38"
       },
       {
+        "name": "Jack V.",
+        "runs": 2,
+        "miles": 8.74,
+        "avg_pace": "11:01"
+      },
+      {
         "name": "Albert Z.",
         "runs": 1,
         "miles": 3.3,
         "avg_pace": "7:02"
-      },
-      {
-        "name": "Jack V.",
-        "runs": 1,
-        "miles": 3.21,
-        "avg_pace": "8:29"
       }
     ]
   }
