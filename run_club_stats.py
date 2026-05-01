@@ -220,11 +220,42 @@ def format_week_section(record):
   {leaderboard_table(record['leaderboard'])}"""
 
 
+NYRR_EVENTS_PATH = "data/nyrr_events.json"
+
+
+def upcoming_nyrr_html(days=14):
+    if not os.path.exists(NYRR_EVENTS_PATH):
+        return ""
+    with open(NYRR_EVENTS_PATH) as f:
+        events = json.load(f)
+    today = datetime.now(timezone.utc).date()
+    cutoff = today + timedelta(days=days)
+    upcoming = [
+        e for e in events
+        if today <= datetime.strptime(e["date"], "%Y-%m-%d").date() <= cutoff
+    ]
+    if not upcoming:
+        return ""
+    rows = ""
+    for e in upcoming:
+        d = datetime.strptime(e["date"], "%Y-%m-%d")
+        label = d.strftime("%a, %b %-d")
+        dist = f'{e["distance_miles"]:.1f} mi'
+        virtual = ' <span style="color:#888;font-size:0.85em">(virtual)</span>' if e.get("virtual") else ""
+        rows += f'<tr><td style="padding:5px 12px 5px 0;white-space:nowrap">{label}</td><td style="padding:5px 12px 5px 0">{e["name"]}{virtual}</td><td style="padding:5px 0;white-space:nowrap;color:#555">{dist}</td></tr>'
+    return f"""
+  <div style="background:#fff8f5;border-left:3px solid #fc4c02;padding:12px 16px;margin-bottom:20px">
+    <p style="margin:0 0 8px 0;font-weight:bold;color:#fc4c02">Upcoming NYRR Races</p>
+    <table style="border-collapse:collapse;font-size:0.93em"><tbody>{rows}</tbody></table>
+  </div>"""
+
+
 def wrap_html(title, body_content):
     return f"""
 <html><body style="font-family:sans-serif;color:#222;max-width:620px;margin:auto">
   <h2 style="color:#fc4c02">🏃 {title}</h2>
   <p style="margin:0 0 16px 0"><a href="https://quinnemanuel-my.sharepoint.com/:w:/r/personal/joshuahall_quinnemanuel_com1/Documents/Run%20Club/QE%20Run%20Calendar.docx?d=wfeccb50409aa40c580e4db36a6199ce6&csf=1&web=1&e=3Vhk1F" style="color:#fc4c02;font-weight:bold">QE RACE CALENDAR 2026</a></p>
+  {upcoming_nyrr_html()}
   {body_content}
   <p style="font-size:0.8em;color:#888;margin-top:24px">Powered by Strava</p>
 </body></html>"""
