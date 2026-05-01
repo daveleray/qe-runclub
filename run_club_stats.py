@@ -147,11 +147,34 @@ def build_stats(runs):
 
     leaderboard.sort(key=lambda x: x["miles"], reverse=True)
 
+    def athlete_name(r):
+        return f"{r.get('athlete', {}).get('firstname', '?')} {r.get('athlete', {}).get('lastname', '?')}"
+
+    longest = max(runs, key=lambda r: r["distance"])
+    road_warrior = {
+        "name":  athlete_name(longest),
+        "miles": round(meters_to_miles(longest["distance"]), 2),
+        "pace":  seconds_to_pace(longest["moving_time"] / longest["distance"]) if longest["distance"] else "N/A",
+    }
+
+    MIN_DIST = 1609.344  # 1 mile — filters out short cooldowns/warmups
+    eligible = [r for r in runs if r["distance"] >= MIN_DIST and r["moving_time"] > 0]
+    speed_demon = None
+    if eligible:
+        fastest = min(eligible, key=lambda r: r["moving_time"] / r["distance"])
+        speed_demon = {
+            "name":  athlete_name(fastest),
+            "miles": round(meters_to_miles(fastest["distance"]), 2),
+            "pace":  seconds_to_pace(fastest["moving_time"] / fastest["distance"]),
+        }
+
     return {
-        "total_runs":  len(runs),
-        "total_miles": round(meters_to_miles(sum(r["distance"] for r in runs)), 2),
+        "total_runs":   len(runs),
+        "total_miles":  round(meters_to_miles(sum(r["distance"] for r in runs)), 2),
         "participants": len(by_athlete),
-        "leaderboard": leaderboard,
+        "leaderboard":  leaderboard,
+        "road_warrior": road_warrior,
+        "speed_demon":  speed_demon,
     }
 
 
@@ -166,13 +189,15 @@ def week_label(week_start_str):
 
 def stats_to_record(stats, week_start, week_end):
     return {
-        "week_start":  week_start.strftime("%Y-%m-%d"),
-        "week_end":    week_end.strftime("%Y-%m-%d"),
-        "label":       week_label(week_start.strftime("%Y-%m-%d")),
-        "total_runs":  stats["total_runs"],
-        "total_miles": stats["total_miles"],
+        "week_start":   week_start.strftime("%Y-%m-%d"),
+        "week_end":     week_end.strftime("%Y-%m-%d"),
+        "label":        week_label(week_start.strftime("%Y-%m-%d")),
+        "total_runs":   stats["total_runs"],
+        "total_miles":  stats["total_miles"],
         "participants": stats["participants"],
-        "leaderboard": stats["leaderboard"],
+        "leaderboard":  stats["leaderboard"],
+        "road_warrior": stats.get("road_warrior"),
+        "speed_demon":  stats.get("speed_demon"),
     }
 
 
@@ -206,6 +231,34 @@ def leaderboard_table(leaderboard):
   </table>"""
 
 
+def awards_html(record):
+    rw = record.get("road_warrior")
+    sd = record.get("speed_demon")
+    if not rw and not sd:
+        return ""
+    rows = ""
+    if rw:
+        rows += (
+            f'<tr>'
+            f'<td style="padding:6px 14px 6px 0;font-size:1.1em">🛣️</td>'
+            f'<td style="padding:6px 14px 6px 0"><strong>Road Warrior</strong><br>'
+            f'<span style="color:#555;font-size:0.9em">{rw["name"]} &nbsp;·&nbsp; {rw["miles"]:.1f} mi &nbsp;·&nbsp; {rw["pace"]}/mi</span></td>'
+            f'</tr>'
+        )
+    if sd:
+        rows += (
+            f'<tr>'
+            f'<td style="padding:6px 14px 6px 0;font-size:1.1em">⚡</td>'
+            f'<td style="padding:6px 14px 6px 0"><strong>Speed Demon</strong><br>'
+            f'<span style="color:#555;font-size:0.9em">{sd["name"]} &nbsp;·&nbsp; {sd["miles"]:.1f} mi &nbsp;·&nbsp; {sd["pace"]}/mi</span></td>'
+            f'</tr>'
+        )
+    return (
+        f'<table style="border-collapse:collapse;margin-bottom:16px">'
+        f'<tbody>{rows}</tbody></table>'
+    )
+
+
 def format_week_section(record):
     label = record.get("label") or (week_label(record["week_start"]) if record else "Unknown week")
     if not record or not record.get("leaderboard"):
@@ -217,6 +270,7 @@ def format_week_section(record):
     <strong>{record['total_miles']:.1f} mi</strong> total &nbsp;·&nbsp;
     <strong>{record['participants']}</strong> athletes
   </p>
+  {awards_html(record)}
   {leaderboard_table(record['leaderboard'])}"""
 
 
