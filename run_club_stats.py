@@ -224,6 +224,7 @@ def wrap_html(title, body_content):
     return f"""
 <html><body style="font-family:sans-serif;color:#222;max-width:620px;margin:auto">
   <h2 style="color:#fc4c02">🏃 {title}</h2>
+  <p style="margin:0 0 16px 0"><a href="https://quinnemanuel-my.sharepoint.com/:w:/r/personal/joshuahall_quinnemanuel_com1/Documents/Run%20Club/QE%20Run%20Calendar.docx?d=wfeccb50409aa40c580e4db36a6199ce6&csf=1&web=1&e=3Vhk1F" style="color:#fc4c02;font-weight:bold">QE RACE CALENDAR 2026</a></p>
   {body_content}
   <p style="font-size:0.8em;color:#888;margin-top:24px">Powered by Strava</p>
 </body></html>"""
