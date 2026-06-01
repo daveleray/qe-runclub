@@ -376,5 +376,85 @@
       "miles": 3.8,
       "pace": "6:34"
     }
+  },
+  {
+    "week_start": "2026-05-25",
+    "week_end": "2026-06-01",
+    "label": "May 25 to May 31",
+    "total_runs": 32,
+    "total_miles": 200.23,
+    "participants": 10,
+    "leaderboard": [
+      {
+        "name": "Jack V.",
+        "runs": 6,
+        "miles": 38.12,
+        "avg_pace": "7:39"
+      },
+      {
+        "name": "Shira B.",
+        "runs": 4,
+        "miles": 33.43,
+        "avg_pace": "9:49"
+      },
+      {
+        "name": "Jeremy B.",
+        "runs": 4,
+        "miles": 31.9,
+        "avg_pace": "8:52"
+      },
+      {
+        "name": "Josh H.",
+        "runs": 4,
+        "miles": 25.54,
+        "avg_pace": "9:01"
+      },
+      {
+        "name": "Sam H.",
+        "runs": 5,
+        "miles": 23.22,
+        "avg_pace": "8:00"
+      },
+      {
+        "name": "David L.",
+        "runs": 3,
+        "miles": 19.15,
+        "avg_pace": "10:39"
+      },
+      {
+        "name": "Meg S.",
+        "runs": 2,
+        "miles": 12.01,
+        "avg_pace": "9:19"
+      },
+      {
+        "name": "Rodrigo T.",
+        "runs": 2,
+        "miles": 8.81,
+        "avg_pace": "7:45"
+      },
+      {
+        "name": "Albert Z.",
+        "runs": 1,
+        "miles": 5.02,
+        "avg_pace": "7:35"
+      },
+      {
+        "name": "Nelly M.",
+        "runs": 1,
+        "miles": 3.01,
+        "avg_pace": "8:55"
+      }
+    ],
+    "road_warrior": {
+      "name": "Shira B.",
+      "miles": 20.01,
+      "pace": "10:20"
+    },
+    "speed_demon": {
+      "name": "Sam H.",
+      "miles": 2.0,
+      "pace": "5:58"
+    }
   }
 ]
