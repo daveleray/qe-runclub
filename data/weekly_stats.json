@@ -542,5 +542,103 @@
       "miles": 3.0,
       "pace": "6:05"
     }
+  },
+  {
+    "week_start": "2026-06-08",
+    "week_end": "2026-06-15",
+    "label": "June 8 to June 14",
+    "total_runs": 45,
+    "total_miles": 248.15,
+    "participants": 13,
+    "leaderboard": [
+      {
+        "name": "Jeremy B.",
+        "runs": 5,
+        "miles": 44.27,
+        "avg_pace": "8:55"
+      },
+      {
+        "name": "Jack V.",
+        "runs": 7,
+        "miles": 39.74,
+        "avg_pace": "7:55"
+      },
+      {
+        "name": "Sam H.",
+        "runs": 6,
+        "miles": 34.18,
+        "avg_pace": "7:33"
+      },
+      {
+        "name": "Shira B.",
+        "runs": 8,
+        "miles": 32.24,
+        "avg_pace": "9:38"
+      },
+      {
+        "name": "David L.",
+        "runs": 4,
+        "miles": 25.15,
+        "avg_pace": "13:08"
+      },
+      {
+        "name": "Josh H.",
+        "runs": 3,
+        "miles": 19.71,
+        "avg_pace": "8:51"
+      },
+      {
+        "name": "Albert Z.",
+        "runs": 4,
+        "miles": 17.29,
+        "avg_pace": "8:51"
+      },
+      {
+        "name": "Jonathan O.",
+        "runs": 3,
+        "miles": 14.13,
+        "avg_pace": "9:05"
+      },
+      {
+        "name": "Ezekiel M.",
+        "runs": 1,
+        "miles": 6.37,
+        "avg_pace": "7:39"
+      },
+      {
+        "name": "Rodrigo T.",
+        "runs": 1,
+        "miles": 5.01,
+        "avg_pace": "7:59"
+      },
+      {
+        "name": "Meg S.",
+        "runs": 1,
+        "miles": 3.51,
+        "avg_pace": "9:24"
+      },
+      {
+        "name": "Joshua B.",
+        "runs": 1,
+        "miles": 3.41,
+        "avg_pace": "9:41"
+      },
+      {
+        "name": "Nelly M.",
+        "runs": 1,
+        "miles": 3.14,
+        "avg_pace": "8:46"
+      }
+    ],
+    "road_warrior": {
+      "name": "Jeremy B.",
+      "miles": 14.02,
+      "pace": "9:01"
+    },
+    "speed_demon": {
+      "name": "Sam H.",
+      "miles": 4.0,
+      "pace": "6:18"
+    }
   }
 ]
